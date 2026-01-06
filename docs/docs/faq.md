@@ -82,3 +82,7 @@ The zog struct tag is used to _define the name of the field in the input data_ (
 ## Why does zog have an internals package?
 
 Please see the [internals](/packages/internals) page for more information.
+
+## Self referencing / Cyclic schemas
+
+Zog currently does not support this. But it is planned.
