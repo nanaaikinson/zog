@@ -162,6 +162,7 @@ func Uint(opts ...SchemaOption) *NumberSchema[uint] {
 	for _, opt := range opts {
 		opt(s)
 	}
+
 	return s
 }
 
@@ -178,6 +179,7 @@ func UintLike[T Numeric](opts ...SchemaOption) *NumberSchema[T] {
 	for _, opt := range opts {
 		opt(s)
 	}
+
 	return s
 }
 

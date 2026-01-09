@@ -62,9 +62,14 @@ func (t TimeFunc) FormatFunc(format func(data string) (time.Time, error)) Schema
 // Usage is:
 // z.Time(z.Time.Format(time.RFC3339))
 func (t TimeFunc) Format(format string) SchemaOption {
-	return t.FormatFunc(func(data string) (time.Time, error) {
-		return time.Parse(format, data)
-	})
+	return func(s ZogSchema) {
+		if EXHAUSTIVE_METADATA {
+			RegistryAdd(exMetaRegistry, s, EX_META_KEY_FORMAT, format)
+		}
+		s.setCoercer(conf.TimeCoercerFactory(func(data string) (time.Time, error) {
+			return time.Parse(format, data)
+		}))
+	}
 }
 
 // Parses the data into the destination time.Time. Returns a list of errors

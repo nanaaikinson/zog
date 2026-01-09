@@ -54,6 +54,7 @@ func BoolLike[T ~bool](opts ...SchemaOption) *BoolSchema[T] {
 	for _, opt := range opts {
 		opt(s)
 	}
+
 	return s
 }
 

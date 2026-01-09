@@ -146,6 +146,9 @@ func (v *StringSchema[T]) Trim() *StringSchema[T] {
 			return nil
 		},
 	})
+	if EXHAUSTIVE_METADATA {
+		RegistryAdd(exMetaRegistry, v.processors[len(v.processors)-1], EX_META_KEY_ID, zconst.ZogTransformIDTrim)
+	}
 
 	return v
 }
@@ -153,6 +156,10 @@ func (v *StringSchema[T]) Trim() *StringSchema[T] {
 // Adds a transform function to the schema. Runs in the order it is called
 func (v *StringSchema[T]) Transform(transform p.Transform[*T]) *StringSchema[T] {
 	v.processors = append(v.processors, &p.TransformProcessor[*T]{Transform: transform})
+
+	if EXHAUSTIVE_METADATA {
+		RegistryAdd(exMetaRegistry, v.processors[len(v.processors)-1], "ID", "custom")
+	}
 	return v
 }
 
@@ -198,6 +205,10 @@ func (v *StringSchema[T]) Test(t Test[*T]) *StringSchema[T] {
 func (v *StringSchema[T]) TestFunc(testFunc BoolTFunc[*T], options ...TestOption) *StringSchema[T] {
 	test := p.NewTestFunc("", p.BoolTFunc[*T](testFunc), options...)
 	v.Test(Test[*T](*test))
+	if EXHAUSTIVE_METADATA {
+		RegistryAdd(exMetaRegistry, test, "ID", "custom")
+		RegistryAdd(exMetaRegistry, test, "typeName", "testFunc")
+	}
 	return v
 }
 
