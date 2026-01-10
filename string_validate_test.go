@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/Oudwins/zog/internals"
-	"github.com/Oudwins/zog/tutils"
+	"github.com/Oudwins/zog/pkgs/internals"
+	"github.com/Oudwins/zog/pkgs/internals/tutils"
 	"github.com/Oudwins/zog/zconst"
 	"github.com/stretchr/testify/assert"
 )
