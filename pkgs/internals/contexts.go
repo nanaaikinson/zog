@@ -47,6 +47,9 @@ func NewExecCtx(errs ZogIssues, fmter IssueFmtFunc) *ExecCtx {
 	c := ExecCtxPool.Get().(*ExecCtx)
 	c.Fmter = fmter
 	c.Errors = errs
+	if c.m != nil {
+		clear(c.m)
+	}
 	return c
 }
 
