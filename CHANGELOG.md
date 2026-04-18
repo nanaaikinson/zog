@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.22.1](https://github.com/Oudwins/zog/compare/v0.22.0...v0.22.1) (2026-04-03)
+
+
+### Features
+
+* default and catch funcs ([#215](https://github.com/Oudwins/zog/issues/215)) ([f27b872](https://github.com/Oudwins/zog/commit/f27b872631d16ff7d3295a88512f237a18c2b14d))
+* experimental any schema ([#214](https://github.com/Oudwins/zog/issues/214)) ([873c637](https://github.com/Oudwins/zog/commit/873c63762f663abdc4d853dfba8cdcaa457b494a))
+* experimental map schema ([#211](https://github.com/Oudwins/zog/issues/211)) ([0907ff2](https://github.com/Oudwins/zog/commit/0907ff226e76944bd16e7da2b0c1656be04d424e))
+* experimental recursive schema ([#209](https://github.com/Oudwins/zog/issues/209)) ([e717322](https://github.com/Oudwins/zog/commit/e7173229f2faa8aef582ffb89d12dfa3860b9abb))
+* experimental Zog Schema Specification ([#203](https://github.com/Oudwins/zog/issues/203)) ([b3c4e89](https://github.com/Oudwins/zog/commit/b3c4e89e6b62b38e8ca4c89487010bd235744286))
+
+
+### Bug Fixes
+
+* Clear values on ExecCtx when creating a new one ([#217](https://github.com/Oudwins/zog/issues/217)) ([f26555a](https://github.com/Oudwins/zog/commit/f26555a4a00d83106f69ec724a126edd70f72361))
+
 ## [0.22.0](https://github.com/Oudwins/zog/compare/v0.21.10...v0.22.0) (2025-12-14)
 
 
