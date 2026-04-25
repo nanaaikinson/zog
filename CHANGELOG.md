@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.2](https://github.com/Oudwins/zog/compare/v0.22.1...v0.22.2) (2026-04-25)
+
+
+### Bug Fixes
+
+* Fixed issue with `,omitempty` suffix in json tag ([#218](https://github.com/Oudwins/zog/issues/218)) ([0ed4743](https://github.com/Oudwins/zog/commit/0ed4743f8d3ca183532b029b2d92cbf59ea9d3cf))
+
 ## [0.22.1](https://github.com/Oudwins/zog/compare/v0.22.0...v0.22.1) (2026-04-03)
 
 
