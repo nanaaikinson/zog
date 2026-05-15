@@ -1,6 +1,7 @@
 package zjson
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -23,4 +24,24 @@ func TestDecodeOmitEmpty(t *testing.T) {
 	errs := schema.Parse(Decode(body), &u)
 	assert.NotEmpty(t, errs)
 	assert.Equal(t, []string{"email"}, errs[0].Path)
+}
+
+func TestDecodeRespectsJSONTagOnInitialismField(t *testing.T) {
+	type SessionCreateRequest struct {
+		Path      string `json:"path"`
+		SessionID string `json:"sessionId,omitempty" zog:"sessionId"`
+	}
+
+	schema := z.Struct(z.Shape{
+		"Path":      z.String().Required(),
+		"SessionID": z.String().Optional(),
+	})
+
+	body := bytes.NewReader([]byte(`{"path":"/bin/x","sessionId":"XYZ-123"}`))
+
+	var payload SessionCreateRequest
+	errs := schema.Parse(Decode(body), &payload)
+	assert.Empty(t, errs)
+	assert.Equal(t, "/bin/x", payload.Path)
+	assert.Equal(t, "XYZ-123", payload.SessionID)
 }
