@@ -36,18 +36,47 @@ func getZSSGoType[T any]() zss.ZSSGoType {
 }
 
 type ZSSSerializable interface {
-	toZSS() *zss.ZSSSchema
+	toZSS(*ZSSSerializeCtx) *zss.ZSSSchema
 }
 
-func EXPERIMENTAL_TO_ZSS(s ZSSSerializable) zss.ZSSDocument {
-	j := s.toZSS()
-	return zss.ZSSDocument{
-		Version: zss.ZSS_VERSION_LATEST,
-		Root:    j,
+type ZSSSerializeCtx struct {
+	defs     map[string]*zss.ZSSSchema
+	defNames map[ZSSSerializable]int
+	nextDef  int
+}
+
+func newZSSSerializeCtx() *ZSSSerializeCtx {
+	return &ZSSSerializeCtx{
+		defs:     map[string]*zss.ZSSSchema{},
+		defNames: map[ZSSSerializable]int{},
 	}
 }
 
-func (s *StringSchema[T]) toZSS() *zss.ZSSSchema {
+func (ctx *ZSSSerializeCtx) refFor(schema ZSSSerializable) *zss.ZSSSchema {
+	if name, ok := ctx.defNames[schema]; ok {
+		ref := zss.ZSSRefFromKey(name)
+		return &zss.ZSSSchema{Ref: &ref}
+	}
+
+	ctx.nextDef++
+	name := ctx.nextDef
+	ctx.defNames[schema] = name
+	ctx.defs[zss.ZSSDefKeyFromKey(name)] = schema.toZSS(ctx)
+	ref := zss.ZSSRefFromKey(name)
+	return &zss.ZSSSchema{Ref: &ref}
+}
+
+func EXPERIMENTAL_TO_ZSS(s ZSSSerializable) zss.ZSSDocument {
+	ctx := newZSSSerializeCtx()
+	j := s.toZSS(ctx)
+	return zss.ZSSDocument{
+		URI:  zss.ZSS_VERSION_LATEST,
+		Root: j,
+		Defs: ctx.defs,
+	}
+}
+
+func (s *StringSchema[T]) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	rvP := reflect.ValueOf(s.processors)
 	j := zss.ZSSSchema{
 		Kind:         zconst.TypeString,
@@ -64,7 +93,7 @@ func (s *StringSchema[T]) toZSS() *zss.ZSSSchema {
 	return &j
 }
 
-func (s *NumberSchema[T]) toZSS() *zss.ZSSSchema {
+func (s *NumberSchema[T]) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	rvP := reflect.ValueOf(s.processors)
 	j := zss.ZSSSchema{
 		Kind:         zconst.TypeNumber,
@@ -80,7 +109,7 @@ func (s *NumberSchema[T]) toZSS() *zss.ZSSSchema {
 	return &j
 }
 
-func (s *BoolSchema[T]) toZSS() *zss.ZSSSchema {
+func (s *BoolSchema[T]) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	rvP := reflect.ValueOf(s.processors)
 	j := zss.ZSSSchema{
 		Kind:         zconst.TypeBool,
@@ -96,7 +125,7 @@ func (s *BoolSchema[T]) toZSS() *zss.ZSSSchema {
 	return &j
 }
 
-func (s *TimeSchema) toZSS() *zss.ZSSSchema {
+func (s *TimeSchema) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	rvP := reflect.ValueOf(s.processors)
 	j := zss.ZSSSchema{
 		Kind:         zconst.TypeTime,
@@ -112,40 +141,37 @@ func (s *TimeSchema) toZSS() *zss.ZSSSchema {
 	return &j
 }
 
-func (s *PointerSchema) toZSS() *zss.ZSSSchema {
+func (s *PointerSchema) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	j := zss.ZSSSchema{
 		Kind:     zconst.TypePtr,
 		Required: toZSSRequired(s.required, s.schema.getType()),
-		Childs:   []zss.ZSSSchemaChild{{Kind: zss.ZSSSchemaChildKindSchema, Schema: s.schema.toZSS()}},
+		Element:  s.schema.toZSS(ctx),
 	}
 	return &j
 }
 
-func (s *SliceSchema) toZSS() *zss.ZSSSchema {
+func (s *SliceSchema) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	rvP := reflect.ValueOf(s.processors)
 	j := zss.ZSSSchema{
 		Kind:         zconst.TypeSlice,
 		Required:     toZSSRequired(s.required, zconst.TypeSlice),
 		DefaultValue: defaultValueFromAnyFunc(s.defaultFunc),
 		Processors:   processorsToZSS(rvP, zconst.TypeSlice),
-		Childs:       []zss.ZSSSchemaChild{{Kind: zss.ZSSSchemaChildKindSchema, Schema: s.schema.toZSS()}},
+		Element:      s.schema.toZSS(ctx),
 	}
 	return &j
 }
 
-func (s *MapSchema[K, V]) toZSS() *zss.ZSSSchema {
+func (s *MapSchema[K, V]) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	rvP := reflect.ValueOf(s.processors)
-	childMap := map[string]zss.ZSSSchema{
-		"key":   *s.keySchema.toZSS(),
-		"value": *s.valueSchema.toZSS(),
-	}
 	defaultValue := shallowCopyMapFromFunc(s.defaultFunc)
 	j := zss.ZSSSchema{
 		Kind:         zconst.TypeMap,
 		Required:     toZSSRequired(s.required, zconst.TypeMap),
 		DefaultValue: defaultValue,
 		Processors:   processorsToZSS(rvP, zconst.TypeMap),
-		Childs:       []zss.ZSSSchemaChild{{Kind: zss.ZSSSchemaChildKindShape, Shape: childMap}},
+		Key:          s.keySchema.toZSS(ctx),
+		Value:        s.valueSchema.toZSS(ctx),
 	}
 	return &j
 }
@@ -169,18 +195,18 @@ func shallowCopyMapFromFunc[K comparable, V any](defaultFunc func() map[K]V) any
 	return shallowCopyMap(defaultFunc())
 }
 
-func (s *StructSchema) toZSS() *zss.ZSSSchema {
+func (s *StructSchema) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	rvP := reflect.ValueOf(s.processors)
 	j := zss.ZSSSchema{
 		Kind:       zconst.TypeStruct,
 		Required:   toZSSRequired(s.required, zconst.TypeStruct),
 		Processors: processorsToZSS(rvP, zconst.TypeStruct),
-		Childs:     []zss.ZSSSchemaChild{{Kind: zss.ZSSSchemaChildKindShape, Shape: toZSSShape(s.schema)}},
+		Fields:     toZSSFields(s.schema, ctx),
 	}
 	return &j
 }
 
-func (s *Custom[T]) toZSS() *zss.ZSSSchema {
+func (s *Custom[T]) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	j := zss.ZSSSchema{
 		Kind: zconst.TypeCustom,
 		// TODO not sure this is the right place for this info
@@ -193,18 +219,18 @@ func (s *Custom[T]) toZSS() *zss.ZSSSchema {
 	return &j
 }
 
-func toZSSShape(m Shape) map[string]zss.ZSSSchema {
-	out := map[string]zss.ZSSSchema{}
+func toZSSFields(m Shape, ctx *ZSSSerializeCtx) map[string]*zss.ZSSSchema {
+	out := map[string]*zss.ZSSSchema{}
 	for k, v := range m {
-		out[k] = *v.toZSS()
+		out[k] = v.toZSS(ctx)
 	}
 	return out
 }
 
-func (s *PreprocessSchema[F, T]) toZSS() *zss.ZSSSchema {
+func (s *PreprocessSchema[F, T]) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	j := zss.ZSSSchema{
-		Kind:   zconst.TypePreprocess,
-		Childs: []zss.ZSSSchemaChild{{Kind: zss.ZSSSchemaChildKindSchema, Schema: s.schema.toZSS()}},
+		Kind:    zconst.TypePreprocess,
+		Element: s.schema.toZSS(ctx),
 	}
 
 	if EXHAUSTIVE_METADATA {
@@ -213,10 +239,10 @@ func (s *PreprocessSchema[F, T]) toZSS() *zss.ZSSSchema {
 	return &j
 }
 
-func (s *BoxedSchema[B, T]) toZSS() *zss.ZSSSchema {
+func (s *BoxedSchema[B, T]) toZSS(ctx *ZSSSerializeCtx) *zss.ZSSSchema {
 	j := zss.ZSSSchema{
-		Kind:   zconst.TypeBoxed,
-		Childs: []zss.ZSSSchemaChild{{Kind: zss.ZSSSchemaChildKindSchema, Schema: s.schema.toZSS()}},
+		Kind:    zconst.TypeBoxed,
+		Element: s.schema.toZSS(ctx),
 	}
 
 	if EXHAUSTIVE_METADATA {

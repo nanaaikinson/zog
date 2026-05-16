@@ -2,6 +2,8 @@ package zssschema
 
 import (
 	z "github.com/Oudwins/zog"
+	zsscore "github.com/Oudwins/zog/pkgs/zss/core"
+	"github.com/Oudwins/zog/zconst"
 )
 
 // ZSSGoTypeSchema defines the schema for ZSSGoType
@@ -17,12 +19,11 @@ var ZSSTransformerSchema = z.Struct(z.Shape{
 })
 
 // ZSSTestSchema defines the schema for ZSSTest
-// Note: params field (map[string]any) cannot be strictly validated, so it's omitted from the schema
 var ZSSTestSchema = z.Struct(z.Shape{
 	"id":        z.String().Required(),
 	"message":   z.String().Required(),
 	"issuePath": z.Slice(z.String()).Required(),
-	// params is map[string]any - cannot be strictly validated with zog schemas
+	"params":    z.EXPERIMENTAL_MAP[string, any](z.String(), z.EXPERIMENTAL_ANY()),
 })
 
 // ZSSProcessorSchema defines the schema for ZSSProcessor
@@ -32,29 +33,37 @@ var ZSSProcessorSchema = z.Struct(z.Shape{
 	"transformer": z.Ptr(ZSSTransformerSchema),
 })
 
-// ZSSSchemaChildSchema defines the schema for ZSSSchemaChild
-var ZSSSchemaChildSchema = z.Struct(z.Shape{
-	"kind": z.String().Required(),
-	// schema and shape are mutually exclusive - cannot be strictly validated
-	// schema is *ZSSSchema - cannot be strictly validated
-	// shape is map[string]ZSSSchema - cannot be strictly validated
+// ZSSExtensionSchema defines the schema for ZSSExtension.
+var ZSSExtensionSchema = z.Struct(z.Shape{
+	"URI":     URISchema,
+	"Content": z.EXPERIMENTAL_ANY(),
 })
 
-// ZSSSchemaSchema defines the schema for ZSSSchema
-// Note: Childs, DefaultValue, and CatchValue fields are typed as any and cannot be strictly validated
-var ZSSSchemaSchema = z.Struct(z.Shape{
-	"kind":       z.String().Required(),
-	"goTypes":    z.Slice(ZSSGoTypeSchema),
-	"format":     z.Ptr(z.String()),
-	"processors": z.Slice(ZSSProcessorSchema).Required(),
-	// childs is []ZSSSchemaChild - cannot be strictly validated due to recursive nature
-	"required": z.Ptr(ZSSTestSchema),
-	// defaultValue is any - cannot be strictly validated
-	// catchValue is any - cannot be strictly validated
+// ZSSSchemaSchema defines the schema for ZSSSchema.
+// Note: defaultValue and catchValue are intentionally loose because ZSS allows arbitrary values.
+var ZSSSchemaSchema = z.EXPERIMENTAL_RECURSIVE(func(self z.RecursiveSchema[*z.StructSchema]) *z.StructSchema {
+	return z.Struct(z.Shape{
+		"Ref":          z.Ptr(z.String()),
+		"kind":         z.StringLike[zconst.ZogType]().OneOf(zconst.ZogTypeValues),
+		"Extension":    z.Ptr(ZSSExtensionSchema),
+		"goTypes":      z.Slice(ZSSGoTypeSchema),
+		"format":       z.Ptr(z.String()),
+		"processors":   z.Slice(ZSSProcessorSchema),
+		"fields":       z.EXPERIMENTAL_MAP[string, *zsscore.ZSSSchema](z.String(), z.Ptr(self())),
+		"element":      z.Ptr(self()),
+		"key":          z.Ptr(self()),
+		"value":        z.Ptr(self()),
+		"required":     z.Ptr(ZSSTestSchema),
+		"defaultValue": z.EXPERIMENTAL_ANY(),
+		"catchValue":   z.EXPERIMENTAL_ANY(),
+	})
 })
+
+var URISchema = z.String().Match(zsscore.ZSS_URI_REGEX).Required()
 
 // ZSSDocumentSchema defines the schema for ZSSDocument
 var ZSSDocumentSchema = z.Struct(z.Shape{
-	"$schema": z.String().Required(),
-	"root":    z.Ptr(ZSSSchemaSchema).NotNil(),
+	"URI":  URISchema, // $Schema
+	"Root": z.Ptr(ZSSSchemaSchema).NotNil(),
+	"Defs": z.EXPERIMENTAL_MAP[string, *zsscore.ZSSSchema](z.String(), z.Ptr(ZSSSchemaSchema)),
 })
