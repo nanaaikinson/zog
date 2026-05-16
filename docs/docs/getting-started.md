@@ -7,6 +7,12 @@ toc_max_heading_level: 4
 
 # Getting Started
 
+#### **Optional: Install the AI agent skill**
+
+Zog includes an agent skill with usage guidance, common mistakes, and best practices. 
+Install it via `npx skills add https://github.com/Oudwins/zog` or by copying it from the skills directory
+
+
 #### **1 Install**
 
 ```bash

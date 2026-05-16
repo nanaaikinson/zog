@@ -20,9 +20,11 @@ Killer Features:
   - **zhttp**: parse http forms & query params
   - **zjson**: parse json
   - **i18n**: Opinionated solution to good i18n zog errors
+- **Agent skill**: So you can write as little boilerplate as possible yourself.
 
 > **API Stability:**
 >
 > - I will consider the API stable when we reach v1.0.0
 > - However, I believe very little API changes will happen from the current implementation. The APIs most likely to change are the **data providers** (please don't make your own if possible use the helpers whose APIs will not change meaningfully) and the z.Ctx most other APIs should remain the same. I could be wrong but I don't expect many breaking changes.
 > - Although we want to keep breaking changes to a minimum, Zog is still in version 0 and will have breaking changes in the minor versions as per semver. So please be careful when upgrading minor versions.
+
