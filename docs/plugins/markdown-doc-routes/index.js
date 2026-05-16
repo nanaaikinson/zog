@@ -29,6 +29,100 @@ function shouldEmitDoc(doc) {
   return doc.draft !== true;
 }
 
+function markdownHrefForLink(link) {
+  if (/^(?:[a-z][a-z0-9+.-]*:|#)/i.test(link)) {
+    return link;
+  }
+
+  return publicPathForPermalink(link);
+}
+
+function itemLabel(item, docsById) {
+  if (item.label) {
+    return item.label;
+  }
+
+  if ((item.type === "doc" || item.type === "ref") && docsById.has(item.id)) {
+    return docsById.get(item.id).title;
+  }
+
+  return undefined;
+}
+
+function firstItemLink(item, docsById) {
+  if (item.type === "link" && !item.unlisted) {
+    return item.href;
+  }
+
+  if ((item.type === "doc" || item.type === "ref") && docsById.has(item.id)) {
+    return docsById.get(item.id).permalink;
+  }
+
+  if (item.type === "category") {
+    if (item.href && !item.linkUnlisted) {
+      return item.href;
+    }
+
+    if (item.link?.type === "generated-index") {
+      return item.link.permalink;
+    }
+
+    for (const child of item.items ?? []) {
+      const link = firstItemLink(child, docsById);
+
+      if (link) {
+        return link;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function markdownLinkForItem(item, docsById) {
+  if (item.type === "html") {
+    return undefined;
+  }
+
+  const label = itemLabel(item, docsById);
+  const link = firstItemLink(item, docsById);
+
+  if (!label || !link) {
+    return undefined;
+  }
+
+  return `- [${label}](${markdownHrefForLink(link)})`;
+}
+
+function markdownForGeneratedIndex(category, docsById) {
+  const links = (category.items ?? [])
+    .map((item) => markdownLinkForItem(item, docsById))
+    .filter(Boolean)
+    .join("\n");
+
+  return (
+    [`# ${category.link.title ?? category.label}`, category.link.description, links]
+      .filter(Boolean)
+      .join("\n\n") + "\n"
+  );
+}
+
+function collectGeneratedIndexCategories(items, categories = []) {
+  for (const item of items ?? []) {
+    if (item.type !== "category") {
+      continue;
+    }
+
+    if (item.link?.type === "generated-index") {
+      categories.push(item);
+    }
+
+    collectGeneratedIndexCategories(item.items, categories);
+  }
+
+  return categories;
+}
+
 function replaceGeneratedBlock(content, block) {
   const start = content.indexOf(START_MARKER);
   const end = content.indexOf(END_MARKER);
@@ -46,6 +140,7 @@ function replaceGeneratedBlock(content, block) {
 function markdownDocRoutesPlugin(context, options = {}) {
   const docsPluginId = options.docsPluginId ?? "default";
   const docs = [];
+  const generatedIndexCategories = [];
 
   return {
     name: "markdown-doc-routes",
@@ -60,6 +155,16 @@ function markdownDocRoutesPlugin(context, options = {}) {
       for (const version of docsContent.loadedVersions ?? []) {
         for (const doc of version.docs ?? []) {
           docs.push(doc);
+        }
+
+        const docsById = new Map(
+          (version.docs ?? []).map((doc) => [doc.id, doc]),
+        );
+
+        for (const sidebar of Object.values(version.sidebars ?? {})) {
+          for (const category of collectGeneratedIndexCategories(sidebar)) {
+            generatedIndexCategories.push({ category, docsById });
+          }
         }
       }
     },
@@ -87,6 +192,27 @@ function markdownDocRoutesPlugin(context, options = {}) {
         await fs.writeFile(outputPath, markdown);
 
         headerPaths.push(publicPathForPermalink(doc.permalink));
+      }
+
+      for (const { category, docsById } of generatedIndexCategories) {
+        const outputPath = outputPathForPermalink(outDir, category.link.permalink);
+        const previousSource = seenOutputPaths.get(outputPath);
+
+        if (previousSource) {
+          throw new Error(
+            `Markdown route collision for ${outputPath}: ${previousSource} and generated index ${category.link.permalink}`,
+          );
+        }
+
+        seenOutputPaths.set(
+          outputPath,
+          `generated index ${category.link.permalink}`,
+        );
+
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await fs.writeFile(outputPath, markdownForGeneratedIndex(category, docsById));
+
+        headerPaths.push(publicPathForPermalink(category.link.permalink));
       }
 
       const headersPath = path.join(outDir, "_headers");
