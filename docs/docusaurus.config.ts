@@ -40,6 +40,12 @@ const config: Config = {
         outputFile: "llms.txt", // defaults to llms.txt if not specified
       },
     ],
+    [
+      "./plugins/markdown-doc-routes",
+      {
+        docsPluginId: "default",
+      },
+    ],
   ],
 
   presets: [
