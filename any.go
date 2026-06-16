@@ -65,7 +65,10 @@ func (v *AnySchema) process(ctx *p.SchemaCtx) {
 
 	destPtr, ok := ctx.ValPtr.(*any)
 	if !ok {
-		p.Panicf(p.PanicTypeCast, ctx.String(), ctx.DType, ctx.ValPtr)
+		// We have to go directly to the exec context as that is what formats. We cannot use ctx because it will try to catch the issue and this is an uncatchable issue
+		// since we cannot set the value as its not of type *any
+		ctx.ExecCtx.AddIssue(ctx.IssueFromInvalidType("*any", ctx.ValPtr, "parsing an any schema"))
+		return
 	}
 
 	// Handle default/required for nil values
@@ -129,7 +132,10 @@ func (v *AnySchema) validate(ctx *p.SchemaCtx) {
 
 	valPtr, ok := ctx.ValPtr.(*any)
 	if !ok {
-		p.Panicf(p.PanicTypeCast, ctx.String(), ctx.DType, ctx.ValPtr)
+		// We have to go directly to the exec context as that is what formats. We cannot use ctx because it will try to catch the issue and this is an uncatchable issue
+		// since we cannot set the value as its not of type *any
+		ctx.ExecCtx.AddIssue(ctx.IssueFromInvalidType("*any", ctx.ValPtr, "validating an any schema"))
+		return
 	}
 
 	// Handle default/required for zero values
