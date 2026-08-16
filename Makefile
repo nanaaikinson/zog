@@ -15,6 +15,6 @@ docs-install:
 docs-dev:
 	cd ./docs && npm start
 
+.PHONY: schema-gen
 schema-gen:
-	go run ./cmd/zssschema-gen/main.go
-
+	go run ./cmd/zssschema-gen/main.go -version "$(VERSION)"

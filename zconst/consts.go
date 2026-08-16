@@ -35,6 +35,7 @@ const (
 	TypePreprocess ZogType = "preprocess"
 	TypeBoxed      ZogType = "boxed"
 	TypeAny        ZogType = "any"
+	TypeUnion      ZogType = "union"
 )
 
 var ZogTypeValues = []ZogType{
@@ -50,6 +51,7 @@ var ZogTypeValues = []ZogType{
 	TypePreprocess,
 	TypeBoxed,
 	TypeAny,
+	TypeUnion,
 }
 
 // Deprecated: This will be removed in the future. Use z.ZogIssueCode instead
