@@ -209,6 +209,53 @@ func TestRequestParamsOnDeleteMethodWithJsonContentType(t *testing.T) {
 	assert.Empty(t, errs)
 }
 
+func TestRequestMissingFieldUsesTaggedIssuePath(t *testing.T) {
+	type Person struct {
+		ZogName   string `zog:"full_name"`
+		QueryName string `query:"query_name" zog:"full_name"`
+		FormName  string `form:"form_name" zog:"full_name"`
+		JSONName  string `json:"json_name" zog:"full_name"`
+	}
+
+	tests := []struct {
+		name         string
+		method       string
+		target       string
+		body         string
+		contentType  string
+		schemaKey    string
+		expectedPath string
+	}{
+		{name: "query zog tag fallback", method: "GET", target: "/?other=value", schemaKey: "ZogName", expectedPath: "full_name"},
+		{name: "query tag precedence", method: "GET", target: "/?other=value", schemaKey: "QueryName", expectedPath: "query_name"},
+		{name: "form zog tag fallback", method: "POST", target: "/", body: "other=value", contentType: "application/x-www-form-urlencoded", schemaKey: "ZogName", expectedPath: "full_name"},
+		{name: "form tag precedence", method: "POST", target: "/", body: "other=value", contentType: "application/x-www-form-urlencoded", schemaKey: "FormName", expectedPath: "form_name"},
+		{name: "json zog tag fallback", method: "POST", target: "/", body: `{"other":true}`, contentType: "application/json", schemaKey: "ZogName", expectedPath: "full_name"},
+		{name: "json tag precedence", method: "POST", target: "/", body: `{"other":true}`, contentType: "application/json", schemaKey: "JSONName", expectedPath: "json_name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest(tt.method, tt.target, strings.NewReader(tt.body))
+			if !assert.NoError(t, err) {
+				return
+			}
+			if tt.contentType != "" {
+				req.Header.Set("Content-Type", tt.contentType)
+			}
+
+			schema := z.Struct(z.Shape{
+				tt.schemaKey: z.String().Required(),
+			})
+			var person Person
+			errs := schema.Parse(Request(req), &person)
+			if assert.NotEmpty(t, errs) {
+				assert.Equal(t, []string{tt.expectedPath}, errs[0].Path)
+			}
+		})
+	}
+}
+
 // Unit tests for url data provider
 func TestUrlDataProviderGet(t *testing.T) {
 	data := url.Values{

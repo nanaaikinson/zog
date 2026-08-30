@@ -84,6 +84,41 @@ func TestEnvTagWithOptions(t *testing.T) {
 	os.Setenv("TEST_STR", "")
 }
 
+func TestEnvMissingFieldUsesTaggedIssuePath(t *testing.T) {
+	type Config struct {
+		EnvOnly  string `env:"ENV_ONLY"`
+		ZogOnly  string `zog:"ZOG_ONLY"`
+		Both     string `env:"ENV_PREFERRED" zog:"ZOG_FALLBACK"`
+		Untagged string
+	}
+
+	tests := []struct {
+		name         string
+		schemaKey    string
+		expectedPath string
+	}{
+		{name: "env tag", schemaKey: "EnvOnly", expectedPath: "ENV_ONLY"},
+		{name: "zog tag fallback", schemaKey: "ZogOnly", expectedPath: "ZOG_ONLY"},
+		{name: "env tag takes precedence over zog tag", schemaKey: "Both", expectedPath: "ENV_PREFERRED"},
+		{name: "schema key fallback", schemaKey: "Untagged", expectedPath: "Untagged"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(tt.expectedPath, "")
+			schema := z.Struct(z.Shape{
+				tt.schemaKey: z.String().Required(),
+			})
+
+			var config Config
+			errs := schema.Parse(NewDataProvider(), &config)
+			if assert.NotEmpty(t, errs) {
+				assert.Equal(t, []string{tt.expectedPath}, errs[0].Path)
+			}
+		})
+	}
+}
+
 // Unit tests for envDataProvider
 func TestNewDataProvider(t *testing.T) {
 	provider := NewDataProvider()
